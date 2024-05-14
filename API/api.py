@@ -24,11 +24,10 @@ producer = KafkaProducer(bootstrap_servers='localhost:29092')
 async def data(user_data: Item):
     try:
         # Convert the user_data to a dictionary and serialize it to JSON
-        serialized_data = user_data.model_dump_json()
-
+        #serialized_data = user_data.model_dump_json()
+        serialized_data = user_data
         # Produce the serialized data to the Kafka topic
         producer.send('raw_data', serialized_data.encode('utf-8'))
-        print("PEEE")
         # Wait up to 1 second for events. Callbacks will be invoked during
         # this method call if the message is acknowledged.
         producer.flush(1)
