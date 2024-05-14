@@ -15,7 +15,6 @@ def get_category(product_name):
     return "Unknown"
 # Create Kafka consumer instance
 consumer = KafkaConsumer('delhaize_shop', bootstrap_servers='localhost:29092', auto_offset_reset='earliest', enable_auto_commit=True)
-
 # Iterate over messages in the Kafka topic
 for message in consumer:
     raw = message.value.decode('utf-8')
