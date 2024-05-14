@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
 from kafka import KafkaProducer
+import uvicorn
 app = FastAPI()
 class Product(BaseModel):
     id : str
@@ -14,10 +15,10 @@ class Item(BaseModel):
     products : list[Product]
 
 producer_conf = {
-    'bootstrap.servers': 'http://localhost:29092/', 
+    'bootstrap.servers': 'http://localhost:9092/', 
 }
 
-producer = KafkaProducer(bootstrap_servers='localhost:29092')
+producer = KafkaProducer(bootstrap_servers='localhost:9092')
 
 @app.post("/data")
 async def data(user_data: Item):
@@ -35,3 +36,5 @@ async def data(user_data: Item):
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
+if __name__ == "__main__":
+    uvicorn.run("main_app:app", port=8080, host="0.0.0.0", reload=True)
