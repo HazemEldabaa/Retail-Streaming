@@ -1,46 +1,6 @@
 from kafka import KafkaConsumer, KafkaProducer
 import json
-# Pseudocode example using an ORM library like SQLAlchemy
 
-from sqlalchemy import create_engine, Column, Integer, String, ForeignKey
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import relationship, sessionmaker
-
-# Define the database connection
-engine = create_engine('sqlite:///retail.db')
-Base = declarative_base()
-
-# Define the Store model
-class Store(Base):
-    __tablename__ = 'stores'
-    id = Column(Integer, primary_key=True)
-    name = Column(String)
-
-# Define the Product model
-class Product(Base):
-    __tablename__ = 'products'
-    id = Column(Integer, primary_key=True)
-    name = Column(String)
-    category = Column(String)
-
-# Define the Sale model
-class Sale(Base):
-    __tablename__ = 'sales'
-    id = Column(Integer, primary_key=True)
-    store_id = Column(Integer, ForeignKey('stores.id'))
-    date = Column(String)
-    total_price = Column(Integer)
-    store = relationship("Store", back_populates="sales")
-
-# Define the SaleProduct model
-class SaleProduct(Base):
-    __tablename__ = 'sale_products'
-    id = Column(Integer, primary_key=True)
-    sale_id = Column(Integer, ForeignKey('sales.id'))
-    product_id = Column(Integer, ForeignKey('products.id'))
-    price = Column(Integer)
-    sale = relationship("Sale", back_populates="products")
-    product = relationship("Product", back_populates="sales")
 
 categories = {
     "Fruit": "apple, banana, orange, pear, kiwi",
