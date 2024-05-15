@@ -54,8 +54,9 @@ def create_receipt():
 
     return Item(id=receipt_id, store=store, date=date, products=product_list)
 
-for _ in range(100):
+for _ in range(10):
     receipt_data = json.dumps(create_receipt().dict())
+    print(receipt_data)
     requests.post('http://localhost:8080/data', data=receipt_data)
 
 print('done')
