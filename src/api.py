@@ -2,6 +2,8 @@ from fastapi import FastAPI
 from pydantic import BaseModel
 from kafka import KafkaProducer
 import uvicorn
+from sqlalchemy import create_engine
+from sqlalchemy.ext.declarative import declarative_base
 from orm import migrate_data
 from consumer import processing
 # from celery import Celery
@@ -23,9 +25,9 @@ class Item(BaseModel):
 
 producer = KafkaProducer(bootstrap_servers='localhost:29092')
 # @celery_app.task
-def process_data():
-    processing()
-    migrate_data()
+#engine = create_engine('postgresql://hazem:admin@localhost:5432/Delhaize_Sales')
+engine = create_engine('sqlite:///retail.db')
+Base = declarative_base()  
 print('created producer')
 @app.get("/")
 async def read_root():
@@ -42,7 +44,9 @@ async def data(user_data: Item):
         # Wait up to 1 second for events. Callbacks will be invoked during
         # this method call if the message is acknowledged.
         producer.flush(1)
-        process_data.delay()
+         
+        processing()
+        migrate_data(engine, Base)
         return {"status": "ok"}
     except Exception as e:
         return {"status": "error", "message": str(e)}

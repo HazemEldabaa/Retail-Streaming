@@ -5,9 +5,8 @@ from sqlalchemy.orm import relationship, sessionmaker
 from kafka import KafkaConsumer
 
 # Define the database connection
-def migrate_data():
-    engine = create_engine('postgresql://hazem:admin@localhost:5432/Delhaize_Sales')
-    Base = declarative_base()
+def migrate_data(engine, Base):
+    
 
     # Define the Store model
     class Store(Base):
@@ -81,5 +80,7 @@ def migrate_data():
 
     # Close the Kafka consumer
     consumer.close()
-if __name__ == 'orm':
-    migrate_data()
+# if __name__ == 'orm':
+#     engine = create_engine('postgresql://hazem:admin@localhost:5432/Delhaize_Sales')
+#     Base = declarative_base()  
+#     migrate_data()
