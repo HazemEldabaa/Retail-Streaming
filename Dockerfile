@@ -1,6 +1,6 @@
 FROM python:3.9-slim
 
-WORKDIR /immo-eliza-deployment
+WORKDIR /retail_streaming
 
 COPY requirements.txt .
 COPY ./src ./src
