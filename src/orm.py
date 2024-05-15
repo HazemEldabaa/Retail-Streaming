@@ -32,7 +32,7 @@ def migrate_data(engine, Base):
         total_price = Column(Integer)
         store = relationship("Store", back_populates="sales")
         products = relationship("SaleProduct", back_populates="sale")
-        
+
     # Define the SaleProduct model
     class SaleProduct(Base):
         __tablename__ = 'sale_products'
@@ -45,7 +45,7 @@ def migrate_data(engine, Base):
 
     # Create tables in the database
     Base.metadata.create_all(engine)
-
+    print('created tables')
     # Create a session
     Session = sessionmaker(bind=engine)
 

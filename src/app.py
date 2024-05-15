@@ -47,9 +47,12 @@ async def data(user_data: Item):
         producer.flush(1)
          
         processing()
-        migrate_data(engine, Base)
+        try:
+            migrate_data()
+        except Exception as e:
+            print(f"Error:{e}")
         return {"status": "ok"}
     except Exception as e:
         return {"status": "error", "message": str(e)}
 if __name__ == "__main__":
-    uvicorn.run("api:app", port=8080, host="0.0.0.0", reload=True)
+    uvicorn.run("app:app", port=8080, host="0.0.0.0", reload=True)

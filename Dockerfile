@@ -14,6 +14,6 @@ EXPOSE 8080
 
 HEALTHCHECK CMD curl --fail http://localhost:8080/_stcore/health
 
-CMD ["python3", "./src/api.py"]
+CMD ["python3", "./src/app.py"]
 
 VOLUME /retail_streaming/src
