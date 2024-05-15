@@ -4,8 +4,8 @@ from kafka import KafkaProducer
 import uvicorn
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
-from orm import migrate_data
-from consumer import processing
+from src.orm import migrate_data
+from src.consumer import processing
 # from celery import Celery
 print("start")
 
@@ -25,8 +25,9 @@ class Item(BaseModel):
 
 producer = KafkaProducer(bootstrap_servers='localhost:29092')
 # @celery_app.task
-#engine = create_engine('postgresql://hazem:admin@localhost:5432/Delhaize_Sales')
-engine = create_engine('sqlite:///retail.db')
+engine = create_engine('postgresql://hazem:admin@retail-streaming-postgres-1/Delhaize_Sales')
+#engine = create_engine('sqlite:///db/retail.db')
+print("db created")
 Base = declarative_base()  
 print('created producer')
 @app.get("/")
@@ -50,6 +51,5 @@ async def data(user_data: Item):
         return {"status": "ok"}
     except Exception as e:
         return {"status": "error", "message": str(e)}
-print('parsed')
 if __name__ == "__main__":
     uvicorn.run("api:app", port=8080, host="0.0.0.0", reload=True)
