@@ -6,6 +6,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from src.orm import migrate_data
 from src.consumer import processing
+from threading import Thread
 # from celery import Celery
 print("start")
 
@@ -46,11 +47,15 @@ async def data(user_data: Item):
         # this method call if the message is acknowledged.
         producer.flush(1)
          
-        processing()
-        try:
-            migrate_data()
-        except Exception as e:
-            print(f"Error:{e}")
+        processing_thread = Thread(target=processing)
+        migration_thread = Thread(target=migrate_data, args=(engine, Base))
+
+        processing_thread.start()
+        migration_thread.start()
+
+        processing_thread.join()
+        migration_thread.join()
+
         return {"status": "ok"}
     except Exception as e:
         return {"status": "error", "message": str(e)}
