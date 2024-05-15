@@ -57,3 +57,5 @@ def create_receipt():
 for _ in range(100):
     receipt_data = json.dumps(create_receipt().dict())
     requests.post('http://localhost:8080/data', data=receipt_data)
+
+print('done')
