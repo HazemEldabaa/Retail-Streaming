@@ -14,7 +14,7 @@ def processing():
                 return category
         return "Unknown"
     # Create Kafka consumer instance
-    consumer = KafkaConsumer('raw_data', bootstrap_servers='localhost:29092', auto_offset_reset='earliest', enable_auto_commit=True)
+    consumer = KafkaConsumer('raw_data', bootstrap_servers='kafka:29092', auto_offset_reset='earliest', enable_auto_commit=True)
     # Iterate over messages in the Kafka topic
     for message in consumer:
         raw = message.value.decode('utf-8')
@@ -48,7 +48,7 @@ def processing():
 
         # Serialize dictionary back into JSON string
         formatted_data_str = json.dumps(formatted_data, indent=4)
-        producer = KafkaProducer(bootstrap_servers='localhost:29092')
+        producer = KafkaProducer(bootstrap_servers='kafka:29092')
         producer.send('processed_data', formatted_data_str.encode('utf-8'))
         # Print formatted data
         print("Succesfully sent data to Kafka topic: processed_data")

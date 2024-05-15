@@ -7,7 +7,7 @@ from kafka import KafkaConsumer
 # Define the database connection
 def migrate_data(engine, Base):
     
-
+    print('migrating')
     # Define the Store model
     class Store(Base):
         __tablename__ = 'stores'
@@ -32,7 +32,7 @@ def migrate_data(engine, Base):
         total_price = Column(Integer)
         store = relationship("Store", back_populates="sales")
         products = relationship("SaleProduct", back_populates="sale")
-
+        
     # Define the SaleProduct model
     class SaleProduct(Base):
         __tablename__ = 'sale_products'
@@ -50,13 +50,13 @@ def migrate_data(engine, Base):
     Session = sessionmaker(bind=engine)
 
     # Create a Kafka consumer
-    consumer = KafkaConsumer('processed_data', bootstrap_servers='localhost:29092', auto_offset_reset='earliest', enable_auto_commit=True)
+    consumer = KafkaConsumer('processed_data', bootstrap_servers='kafka:29092', auto_offset_reset='earliest', enable_auto_commit=True)
 
     # Process messages from Kafka
     for message in consumer:
         data = message.value.decode('utf-8')
         data = json.loads(data)
-        
+        print('loaded')
         # Open a session
         session = Session()
 
@@ -66,7 +66,7 @@ def migrate_data(engine, Base):
 
         sale = Sale(store=store, date=data['date'], total_price=data['total_price'])
         session.add(sale)
-
+        print('added')
         for product_data in data['products']:
             product = Product(name=product_data['name'], category=product_data['category'])
             session.add(product)
@@ -76,6 +76,7 @@ def migrate_data(engine, Base):
 
         # Commit changes and close session
         session.commit()
+        print('commited')
         session.close()
 
     # Close the Kafka consumer

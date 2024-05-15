@@ -23,7 +23,7 @@ class Item(BaseModel):
 
 # celery_app = Celery('tasks', broker='redis://localhost:6379/0')
 
-producer = KafkaProducer(bootstrap_servers='localhost:29092')
+producer = KafkaProducer(bootstrap_servers='kafka:29092')
 # @celery_app.task
 engine = create_engine('postgresql://hazem:admin@retail-streaming-postgres-1/Delhaize_Sales')
 #engine = create_engine('sqlite:///db/retail.db')
