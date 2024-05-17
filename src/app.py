@@ -9,7 +9,7 @@ from src.consumer import processing
 from src.cloud import ingest_azure
 from threading import Thread
 # from celery import Celery
-print("start")
+print("testing ci/cd")
 
 
 
