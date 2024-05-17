@@ -51,15 +51,15 @@ def data(user_data: Item):
          
         processing_thread = Thread(target=processing)
         migration_thread = Thread(target=migrate_data, args=(engine, Base))
-        # ingest_thread = Thread(target=ingest_azure)
+        ingest_thread = Thread(target=ingest_azure)
 
         processing_thread.start()
         migration_thread.start()
-        # ingest_thread.start()
+        ingest_thread.start()
 
         processing_thread.join()
         migration_thread.join()
-        # ingest_thread.join()
+        ingest_thread.join()
         return {"status": "ok"}
     except Exception as e:
         return {"status": "error", "message": str(e)}
