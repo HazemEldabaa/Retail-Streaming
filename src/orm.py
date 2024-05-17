@@ -12,14 +12,14 @@ def migrate_data(engine, Base):
     class Store(Base):
         __tablename__ = 'stores'
         id = Column(Integer, primary_key=True)
-        name = Column(String)
+        name = Column(String(255), unique=True)
         sales = relationship("Sale", back_populates="store")
 
     # Define the Product model
     class Product(Base):
         __tablename__ = 'products'
         id = Column(Integer, primary_key=True)
-        name = Column(String)
+        name = Column(String(255), unique=True)
         category = Column(String)
         sales = relationship("SaleProduct", back_populates="product")
 
@@ -60,28 +60,38 @@ def migrate_data(engine, Base):
         # Open a session
         session = Session()
 
-        # Insert data into the database
-        store = Store(name=data['store'])
-        session.add(store)
-
+        # Check if the store exists
+        store = session.query(Store).filter_by(name=data['store']).first()
+        if not store:
+            store = Store(name=data['store'])
+            session.add(store)
+            session.commit()  # Commit to generate the store ID
+            print('added store')
+        
         sale = Sale(store=store, date=data['date'], total_price=data['total_price'])
         session.add(sale)
-        print('added')
+        print('added sale')
+        
         for product_data in data['products']:
-            product = Product(name=product_data['name'], category=product_data['category'])
-            session.add(product)
+            product = session.query(Product).filter_by(name=product_data['name']).first()
+            if not product:
+                product = Product(name=product_data['name'], category=product_data['category'])
+                session.add(product)
+                session.commit()  # Commit to generate the product ID
+                print('added product')
             
             sale_product = SaleProduct(sale=sale, product=product, price=product_data['price'])
             session.add(sale_product)
 
         # Commit changes and close session
         session.commit()
-        print('commited')
+        print('committed')
         session.close()
 
     # Close the Kafka consumer
     consumer.close()
-# if __name__ == 'orm':
+
+# if __name__ == '__main__':
 #     engine = create_engine('postgresql://hazem:admin@localhost:5432/Delhaize_Sales')
-#     Base = declarative_base()  
-#     migrate_data()
+#     Base = declarative_base()
+#     migrate_data(engine, Base)
