@@ -1,5 +1,7 @@
 import random
 from datetime import datetime
+import asyncio
+import httpx
 import requests 
 from pydantic import BaseModel
 import json
@@ -54,8 +56,27 @@ def create_receipt():
 
     return Item(id=receipt_id, store=store, date=date, products=product_list)
 
-for _ in range(100):
-    receipt_data = json.dumps(create_receipt().dict())
-    requests.post('http://localhost:8080/data', data=receipt_data)
 
+async def send_data(client, url):
+    while True:
+        data= create_receipt().dict()
+        print('generated data', data)
+        try:
+            response = await client.post(url, json=data)
+            if response.status_code == 200:
+                print(f"Data sent successfully{data}")
+            else:
+                print(f"Failed to send data due to:{response.status_code}")
+        except Exception as e:
+            print(f"An  error occurred: {e}")
+        await asyncio.sleep(random.uniform(0.5, 2))
+
+
+async  def main():
+    url= 'http://localhost:8080/data'
+    async with httpx.AsyncClient()  as client:
+        await send_data(client,  url)
+
+if __name__ == "__main__":
+    asyncio.run(main())
 print('done')
