@@ -3,48 +3,16 @@ from sqlalchemy import create_engine, Column, Integer, String, ForeignKey
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship, sessionmaker
 from kafka import KafkaConsumer
+from src.models import Store, Product, Sale, SaleProduct
 
 # Define the database connection
 def migrate_data(engine, Base):
     
     print('migrating')
     # Define the Store model
-    class Store(Base):
-        __tablename__ = 'stores'
-        id = Column(Integer, primary_key=True)
-        name = Column(String(255), unique=True)
-        sales = relationship("Sale", back_populates="store")
-
-    # Define the Product model
-    class Product(Base):
-        __tablename__ = 'products'
-        id = Column(Integer, primary_key=True)
-        name = Column(String(255), unique=True)
-        category = Column(String)
-        sales = relationship("SaleProduct", back_populates="product")
-
-    # Define the Sale model
-    class Sale(Base):
-        __tablename__ = 'sales'
-        id = Column(Integer, primary_key=True)
-        store_id = Column(Integer, ForeignKey('stores.id'))
-        date = Column(String)
-        total_price = Column(Integer)
-        store = relationship("Store", back_populates="sales")
-        products = relationship("SaleProduct", back_populates="sale")
-
-    # Define the SaleProduct model
-    class SaleProduct(Base):
-        __tablename__ = 'sale_products'
-        id = Column(Integer, primary_key=True)
-        sale_id = Column(Integer, ForeignKey('sales.id'))
-        product_id = Column(Integer, ForeignKey('products.id'))
-        price = Column(Integer)
-        sale = relationship("Sale", back_populates="products")
-        product = relationship("Product", back_populates="sales")
 
     # Create tables in the database
-    Base.metadata.create_all(engine)
+    #Base.metadata.create_all(engine)
     print('created tables')
     # Create a session
     Session = sessionmaker(bind=engine)
