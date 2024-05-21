@@ -1,18 +1,30 @@
 import pyodbc
 import psycopg2
-from sqlalchemy import create_engine, Column, Integer, String, ForeignKey
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import relationship, sessionmaker
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
 from sqlalchemy.exc import SQLAlchemyError
 import urllib
+import os
+from dotenv import load_dotenv
 from src.models import Store, Product, Sale, SaleProduct
+
+load_dotenv()
+
 def ingest_azure():
-    print('preparing ingestion......')
-    server = 'retail-salessqlserver.database.windows.net'
-    database = 'retail-salesdb'
-    username = 'hazem'
-    password = 'h@z3m6969!' 
-    driver= '{ODBC Driver 17 for SQL Server}'
+    print('Preparing ingestion...')
+    
+    # Load environment variables
+    server = os.getenv('AZURE_SQL_SERVER')
+    database = os.getenv('AZURE_SQL_DATABASE')
+    username = os.getenv('AZURE_SQL_USER')
+    password = os.getenv('AZURE_SQL_PASSWORD') 
+
+    # Check if environment variables are loaded
+    if not all([server, database, username, password]):
+        print("Error: One or more Azure SQL environment variables are not set.")
+        return
+
+    driver = '{ODBC Driver 17 for SQL Server}'
     params = urllib.parse.quote_plus(
         f"DRIVER={driver};"
         f"SERVER={server},1433;"
@@ -21,61 +33,70 @@ def ingest_azure():
         f"PWD={password}"
     )
     sql_connection_string = f"mssql+pyodbc:///?odbc_connect={params}"
-    #sql_connection_string = f"mssql+pyodbc://{username}:{password}@{server}:1433/{database}?driver={driver.replace(' ', '+')}"
 
     pg_connection_string = 'postgresql://hazem:admin@retail-streaming-postgres-1/Delhaize_Sales'
-    # Define SQLAlchemy Base
 
-    # Define the Store model
- 
     # Create Azure SQL Database engine
     sql_engine = create_engine(sql_connection_string)
-    #Base.metadata.create_all(sql_engine)  # Create tables if they don't exist
+    # Create PostgreSQL engine
+    pg_engine = create_engine(pg_connection_string)
 
-    # Create a new session
-    Session = sessionmaker(bind=sql_engine)
-    session = Session()
+    # Create a new session for Azure SQL
+    SqlSession = sessionmaker(bind=sql_engine)
+    sql_session = SqlSession()
 
-    # Connect to PostgreSQL
-    pg_conn = psycopg2.connect(pg_connection_string)
-    pg_cursor = pg_conn.cursor()
+    # Create a new session for PostgreSQL
+    PgSession = sessionmaker(bind=pg_engine)
+    pg_session = PgSession()
 
-    # Fetch data from PostgreSQL and insert into Azure SQL Database
     try:
-        # Fetch stores
-        pg_cursor.execute("SELECT id, name FROM stores")
-        stores = pg_cursor.fetchall()
-        for store in stores:
-            session.merge(Store(id=store[0], name=store[1]))
+        # Fetch and insert stores
+        pg_stores = pg_session.query(Store).all()
+        for pg_store in pg_stores:
+            existing_store = sql_session.query(Store).filter_by(id=pg_store.id).first()
+            if not existing_store:
+                sql_session.add(Store(id=pg_store.id, name=pg_store.name))
+        print('Fetched and inserted stores.')
 
-        # Fetch products
-        pg_cursor.execute("SELECT id, name, category FROM products")
-        products = pg_cursor.fetchall()
-        for product in products:
-            session.merge(Product(id=product[0], name=product[1], category=product[2]))
+        # Fetch and insert products
+        pg_products = pg_session.query(Product).all()
+        for pg_product in pg_products:
+            existing_product = sql_session.query(Product).filter_by(id=pg_product.id).first()
+            if not existing_product:
+                sql_session.add(Product(id=pg_product.id, name=pg_product.name, category=pg_product.category))
+        print('Fetched and inserted products.')
 
-        # Fetch sales
-        pg_cursor.execute("SELECT id, store_id, date, total_price FROM sales")
-        sales = pg_cursor.fetchall()
-        for sale in sales:
-            session.merge(Sale(id=sale[0], store_id=sale[1], date=sale[2], total_price=sale[3]))
+        # Fetch and insert sales
+        pg_sales = pg_session.query(Sale).all()
+        for pg_sale in pg_sales:
+            existing_sale = sql_session.query(Sale).filter_by(id=pg_sale.id).first()
+            if not existing_sale:
+                sql_session.add(Sale(id=pg_sale.id, store_id=pg_sale.store_id, date=pg_sale.date, total_price=pg_sale.total_price))
+        print('Fetched and inserted sales.')
 
-        # Fetch sale_products
-        pg_cursor.execute("SELECT id, sale_id, product_id, price FROM sale_products")
-        sale_products = pg_cursor.fetchall()
-        for sale_product in sale_products:
-            session.merge(SaleProduct(id=sale_product[0], sale_id=sale_product[1], product_id=sale_product[2], price=sale_product[3]))
+        # Fetch and insert sale_products
+        pg_sale_products = pg_session.query(SaleProduct).all()
+        for pg_sale_product in pg_sale_products:
+            existing_sale_product = sql_session.query(SaleProduct).filter_by(id=pg_sale_product.id).first()
+            if not existing_sale_product:
+                sql_session.add(SaleProduct(id=pg_sale_product.id, sale_id=pg_sale_product.sale_id, product_id=pg_sale_product.product_id, price=pg_sale_product.price))
+        print('Fetched and inserted sale_products.')
 
         # Commit the session
-        session.commit()
-        print('boom bitch')
+        sql_session.commit()
+        print('Data ingestion completed successfully.')
     except SQLAlchemyError as e:
-        print(f"Error: {e}")
-        session.rollback()
+        print(f"SQLAlchemy error occurred: {e}")
+        sql_session.rollback()
+    except Exception as e:
+        print(f"An error occurred: {e}")
+        sql_session.rollback()
     finally:
-        # Close connections
-        pg_cursor.close()
-        pg_conn.close()
-        session.close()
+        # Close sessions
+        pg_session.close()
+        sql_session.close()
 
     print("Data transfer complete.")
+
+if __name__ == "__main__":
+    ingest_azure()

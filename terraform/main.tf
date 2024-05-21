@@ -1,10 +1,10 @@
 provider "azurerm" {
   features {}
   
-  subscription_id = "e25edaf1-efeb-4a43-b275-886306abd8a5"
-  client_id       = "e035e6db-a33c-4bb1-8eb8-0efd3a153d01"
-  client_secret   = "nhd8Q~eLxiiGzzybi_RRWRc6zsTgEhZl7Lg3jbxh"
-  tenant_id       = "3e143e4e-a729-438b-94a3-22f42f4af714"
+  subscription_id = ""
+  client_id       = ""
+  client_secret   = ""
+  tenant_id       = ""
 }
 
 resource "azurerm_resource_group" "retail-sales" {
@@ -18,7 +18,7 @@ resource "azurerm_sql_server" "retail-sales" {
   location                     = azurerm_resource_group.retail-sales.location
   version                      = "12.0"
   administrator_login          = "hazem"
-  administrator_login_password = "h@z3m6969!"
+  administrator_login_password = ""
 }
 
 resource "azurerm_sql_database" "retail-sales" {

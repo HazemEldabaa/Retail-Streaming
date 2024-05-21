@@ -71,10 +71,10 @@ async def send_data(client, url):
             print(f"An  error occurred: {e}")
         await asyncio.sleep(random.uniform(0.5, 2))
 
-def main():
+async def main():
         url= 'http://localhost:8080/data'
-        with httpx.Client() as client:
-            asyncio.run(send_data(client,  url))
+        async with httpx.AsyncClient() as client:
+            await send_data(client, url)
 # async  def main():
 #     url= 'http://localhost:8080/data'
 #     async with httpx.AsyncClient()  as client:
