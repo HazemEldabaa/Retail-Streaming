@@ -33,7 +33,7 @@ jobs:
       uses: docker/login-action@v1
       with:
         username: ${{ github.actor }} # GitHub username
-        password: ${{ secrets.DOCKER_ACC }} # PAT stored as a secret
+        password: ${{ secrets.GITHUB_TOKEN }} # PAT stored as a secret
 
     - name: Build and push API image
       uses: docker/build-push-action@v2
@@ -63,7 +63,7 @@ jobs:
       uses: docker/login-action@v1
       with:
         username: ${{ github.actor }} # GitHub username
-        password: ${{ secrets.DOCKER_ACC }} # PAT stored as a secret
+        password: ${{ secrets.GITHUB_TOKEN }} # PAT stored as a secret
 
     - name: Pull and run Docker Compose
       run: |
