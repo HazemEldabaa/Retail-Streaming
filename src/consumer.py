@@ -1,7 +1,12 @@
 from kafka import KafkaConsumer, KafkaProducer
 import json
 
-def processing():
+import asyncio
+from confluent_kafka import Consumer
+import json
+import os
+
+def processing(msg):
     categories = {
         "Fruit": "apple, banana, orange, pear, kiwi",
         "Bakery": "bread, croissant, baguette, cake",
@@ -13,23 +18,16 @@ def processing():
             if product_name in products:
                 return category
         return "Unknown"
-    # Create Kafka consumer instance
-    consumer = KafkaConsumer('raw_data', bootstrap_servers='kafka:29092', auto_offset_reset='earliest', enable_auto_commit=True)
-    # Iterate over messages in the Kafka topic
-    for message in consumer:
-        raw = message.value.decode('utf-8')
-        # Create a reverse mapping of product names to categories
-        #products_json = raw['products']
 
-    # Deserialize JSON string into a Python list
-        data = json.loads(raw)
-        # Calculate total price
-        total_price = sum(product['price'] for product in data['products'])
 
-        # Add total price to data dictionary
-        data['total_price'] = total_price
+    raw = msg.value().decode('utf-8')
+    data = json.loads(raw)
 
-        formatted_data = {
+    # Calculate total price
+    total_price = sum(product['price'] for product in data['products'])
+    data['total_price'] = total_price
+
+    formatted_data = {
         "id": data["id"],
         "store": data["store"],
         "date": data["date"],
@@ -37,19 +35,24 @@ def processing():
         "products": data["products"]
     }
 
-        # Add category to each product
-        for product in formatted_data['products']:
-            for category, products in categories.items():
-                if product['name'] in products:
-                    product['category'] = category
-                    break
-            else:
-                product['category'] = "Unknown"
+    # Add category to each product
+    for product in formatted_data['products']:
+        product['category'] = get_category(product['name'])
 
-        # Serialize dictionary back into JSON string
-        formatted_data_str = json.dumps(formatted_data, indent=4)
-        producer = KafkaProducer(bootstrap_servers='kafka:29092')
-        producer.send('processed_data', formatted_data_str.encode('utf-8'))
-        # Print formatted data
-        print("Succesfully sent data to Kafka topic: processed_data")
-        
+    formatted_data_str = json.dumps(formatted_data, indent=4)
+
+
+    producer = KafkaProducer(bootstrap_servers='kafka:29092')
+    producer.send('processed_data', formatted_data_str.encode('utf-8'))
+    producer.flush()
+
+    print("Successfully sent data to Kafka topic: processed_data")
+
+# Start the async processing function
+if __name__ == "__main__":
+    consumer_conf = {
+        'bootstrap.servers': os.environ.get('KAFKA_BOOTSTRAP_SERVERS', 'kafka:29092'),
+        'group.id': 'my_consumer_group',
+        'auto.offset.reset': 'earliest'
+    }
+    asyncio.run(processing(consumer_conf))

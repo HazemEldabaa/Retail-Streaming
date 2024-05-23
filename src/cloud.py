@@ -10,7 +10,7 @@ from src.models import Store, Product, Sale, SaleProduct
 
 load_dotenv()
 
-def ingest_azure():
+async def ingest_azure():
     print('Preparing ingestion...')
     
     # Load environment variables
@@ -35,7 +35,7 @@ def ingest_azure():
     sql_connection_string = f"mssql+pyodbc:///?odbc_connect={params}"
 
     pg_connection_string = 'postgresql://hazem:admin@retail-streaming-postgres-1/Delhaize_Sales'
-
+    print('Connection strings created.')
     # Create Azure SQL Database engine
     sql_engine = create_engine(sql_connection_string)
     # Create PostgreSQL engine
@@ -48,43 +48,40 @@ def ingest_azure():
     # Create a new session for PostgreSQL
     PgSession = sessionmaker(bind=pg_engine)
     pg_session = PgSession()
-
+    print('Sessions created.')
     try:
         # Fetch and insert stores
-        pg_stores = pg_session.query(Store).all()
-        for pg_store in pg_stores:
-            existing_store = sql_session.query(Store).filter_by(id=pg_store.id).first()
+        for pg_store in pg_session.query(Store).all():
+            existing_store = sql_session.query(Store).filter_by(name=pg_store.name).first()
             if not existing_store:
                 sql_session.add(Store(id=pg_store.id, name=pg_store.name))
-        print('Fetched and inserted stores.')
+                sql_session.commit()
+        print('Stores ingestion completed successfully.')
 
         # Fetch and insert products
-        pg_products = pg_session.query(Product).all()
-        for pg_product in pg_products:
-            existing_product = sql_session.query(Product).filter_by(id=pg_product.id).first()
+        for pg_product in pg_session.query(Product).all():
+            existing_product = sql_session.query(Product).filter_by(name=pg_product.name).first()
             if not existing_product:
                 sql_session.add(Product(id=pg_product.id, name=pg_product.name, category=pg_product.category))
-        print('Fetched and inserted products.')
+                sql_session.commit()
+        print('Products ingestion completed successfully.')
 
         # Fetch and insert sales
-        pg_sales = pg_session.query(Sale).all()
-        for pg_sale in pg_sales:
+        for pg_sale in pg_session.query(Sale).all():
             existing_sale = sql_session.query(Sale).filter_by(id=pg_sale.id).first()
             if not existing_sale:
                 sql_session.add(Sale(id=pg_sale.id, store_id=pg_sale.store_id, date=pg_sale.date, total_price=pg_sale.total_price))
-        print('Fetched and inserted sales.')
+                sql_session.commit()
+        print('Sales ingestion completed successfully.')
 
         # Fetch and insert sale_products
-        pg_sale_products = pg_session.query(SaleProduct).all()
-        for pg_sale_product in pg_sale_products:
+        for pg_sale_product in pg_session.query(SaleProduct).all():
             existing_sale_product = sql_session.query(SaleProduct).filter_by(id=pg_sale_product.id).first()
             if not existing_sale_product:
                 sql_session.add(SaleProduct(id=pg_sale_product.id, sale_id=pg_sale_product.sale_id, product_id=pg_sale_product.product_id, price=pg_sale_product.price))
-        print('Fetched and inserted sale_products.')
-
-        # Commit the session
-        sql_session.commit()
-        print('Data ingestion completed successfully.')
+                sql_session.commit()
+        print('Sale products ingestion completed successfully.')
+        
     except SQLAlchemyError as e:
         print(f"SQLAlchemy error occurred: {e}")
         sql_session.rollback()
@@ -95,8 +92,6 @@ def ingest_azure():
         # Close sessions
         pg_session.close()
         sql_session.close()
-
-    print("Data transfer complete.")
 
 if __name__ == "__main__":
     ingest_azure()
