@@ -44,19 +44,6 @@ def create_kafka_producer():
         except ConnectionRefusedError:
             print("Error: No Kafka brokers available. Retrying in 5 seconds...")
             time.sleep(5)
-# def create_kafka_topics():
-#     admin_client = KafkaAdminClient(bootstrap_servers='kafka:29092')
-#     topics = [NewTopic(name='raw_data', num_partitions=1, replication_factor=1),
-#               NewTopic(name='processed_data', num_partitions=1, replication_factor=1)]
-#     admin_client.create_topics(topics)
-# create_kafka_topics()
-# #producer = KafkaProducer(bootstrap_servers='kafka:29092')
-# producer = create_kafka_producer()
-# raw = KafkaConsumer(bootstrap_servers='kafka:29092')
-# processed = KafkaConsumer(bootstrap_servers='kafka:29092')
-# producer_conf = {
-#     'bootstrap.servers': 'kafka:29092',
-# }
 
 
 def check_and_create_topic(admin_client, topic_name, num_partitions, replication_factor):
