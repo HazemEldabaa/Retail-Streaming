@@ -69,16 +69,17 @@ async def send_data(client, url):
                 print(f"Failed to send data due to:{response.status_code}")
         except Exception as e:
             print(f"An  error occurred: {e}")
-        await asyncio.sleep(random.uniform(0.5, 2))
+        await asyncio.sleep(random.uniform(20, 21))
 
-async def main():
-        url= 'http://localhost:8080/data'
-        async with httpx.AsyncClient() as client:
-            await send_data(client, url)
-# async  def main():
-#     url= 'http://localhost:8080/data'
-#     async with httpx.AsyncClient()  as client:
-#         await send_data(client,  url)
+# async def main():
+#         url= 'http://localhost:8080/data'
+#         async with httpx.AsyncClient() as client:
+#             await send_data(client, url)
+
+async  def main():
+    url= 'http://localhost:8080/data'
+    async with httpx.AsyncClient() as client:
+        await send_data(client,  url)
 
 if __name__ == "__main__":
     asyncio.run(main())

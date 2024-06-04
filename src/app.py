@@ -1,31 +1,29 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
-from kafka import KafkaProducer, KafkaConsumer, KafkaAdminClient
-from kafka.admin import NewTopic
-from confluent_kafka import Producer, Consumer, KafkaError, KafkaException
-from confluent_kafka.admin import AdminClient
+from kafka import KafkaConsumer, KafkaProducer
 import uvicorn
 import asyncio
 from sqlalchemy import create_engine, Column, Integer, String, ForeignKey
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import relationship
+from threading import Thread
+from dotenv import load_dotenv
+import os
+import sys
+import logging  
+from src.consumer import process
 from src.orm import migrate_data
-from src.consumer import processing
 from src.cloud import ingest_azure
 from threading import Thread
-import urllib
 import socket
 import time
-# from celery import Celery
-print("testing ci/cd")
 
-
+load_dotenv()
 
 app = FastAPI()
-class Product(BaseModel):
-    id : str
-    name : str
-    price : float
+print('server is running...')
+
+logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
+logger = logging.getLogger(__name__)
 
 class Item(BaseModel):
     id : str
@@ -35,10 +33,9 @@ class Item(BaseModel):
 
 def create_kafka_producer():
     while True:
+        # Check if Kafka brokers are available
         try:
-            # Check if Kafka brokers are available
             socket.create_connection(('kafka', 29092), timeout=1)
-            # If reachable, create Kafka producer
             producer = KafkaProducer(bootstrap_servers='kafka:29092')
             return producer
         except ConnectionRefusedError:
@@ -46,83 +43,18 @@ def create_kafka_producer():
             time.sleep(5)
 
 
-def check_and_create_topic(admin_client, topic_name, num_partitions, replication_factor):
-    """Check if a topic exists, and create it if it does not."""
-    topic_metadata = admin_client.list_topics(timeout=10)
-    if topic_name in topic_metadata.topics:
-        print(f"Topic '{topic_name}' already exists.")
-        return
-    else:
-        print(f"Creating topic '{topic_name}'...")
-        new_topic = NewTopic(topic_name, num_partitions=num_partitions, replication_factor=replication_factor)
-        fs = admin_client.create_topics([new_topic])
-        try:
-            fs[topic_name].result()  # Wait for operation to finish
-            print(f"Topic '{topic_name}' created successfully.")
-        except KafkaException as e:
-            print(f"Failed to create topic '{topic_name}': {e}")
-            raise
+producer = KafkaProducer(bootstrap_servers="kafka:29092")
+logger.info("Kafka producer created successfully.")
+
+try:
+    pg_engine = create_engine('postgresql://hazem:admin@retail-streaming-postgres-1/Delhaize_Sales')
+    Base = declarative_base()
+    Base.metadata.create_all(pg_engine)
+    logger.info("PostgreSQL connection established and tables created if not exist.")
+except Exception as e:
+    logger.error(f"Failed to connect to PostgreSQL: {e}")
 
 
-# Kafka bootstrap servers
-bootstrap_servers = 'kafka:29092'
-
-# Wait for the broker to be available
-producer = create_kafka_producer()
-# Create an AdminClient
-admin_client = AdminClient({'bootstrap.servers': bootstrap_servers})
-
-# Topics to check and create if not exist
-topics = [
-    {"name": "raw_data", "num_partitions": 1, "replication_factor": 1},
-    {"name": "processed_data", "num_partitions": 1, "replication_factor": 1}
-]
-
-# Check and create topics
-for topic in topics:
-    check_and_create_topic(admin_client, topic["name"], topic["num_partitions"], topic["replication_factor"])
-consumer_conf = {
-    'bootstrap.servers': 'kafka:29092',
-    'group.id': 'my_consumer_group',
-    'auto.offset.reset': 'earliest',
-}
-
-raw = Consumer(consumer_conf)
-processed = Consumer(consumer_conf)
-raw.subscribe(['raw_data'])
-processed.subscribe(['processed_data'])
-engine = create_engine('postgresql://hazem:admin@retail-streaming-postgres-1/Delhaize_Sales')
-print("db created")
-Base = declarative_base()
-server = 'retail-salessqlserver.database.windows.net'
-database = 'retail-salesdb'
-username = 'hazem'
-password = 'h@z3m6969!' 
-driver= '{ODBC Driver 17 for SQL Server}'
-params = urllib.parse.quote_plus(
-    f"DRIVER={driver};"
-    f"SERVER={server},1433;"
-    f"DATABASE={database};"
-    f"UID={username};"
-    f"PWD={password}"
-)
-sql_connection_string = f"mssql+pyodbc:///?odbc_connect={params}"  
-# Define the Store model
-class Store(Base):
-    __tablename__ = 'stores'
-    id = Column(Integer, primary_key=True)
-    name = Column(String(255), unique=True)
-    sales = relationship("Sale", back_populates="store")
-
-# Define the Product model
-class Product(Base):
-    __tablename__ = 'products'
-    id = Column(Integer, primary_key=True)
-    name = Column(String(255), unique=True)
-    category = Column(String)
-    sales = relationship("SaleProduct", back_populates="product")
-
-# Define the Sale model
 class Sale(Base):
     __tablename__ = 'sales'
     id = Column(Integer, primary_key=True)
@@ -132,7 +64,7 @@ class Sale(Base):
     store = relationship("Store", back_populates="sales")
     products = relationship("SaleProduct", back_populates="sale")
 
-# Define the SaleProduct model
+
 class SaleProduct(Base):
     __tablename__ = 'sale_products'
     id = Column(Integer, primary_key=True)
@@ -144,7 +76,6 @@ class SaleProduct(Base):
 
 sql_engine = create_engine(sql_connection_string)
 Base.metadata.create_all(sql_engine)
-    # Create tables in the database
 Base.metadata.create_all(engine)
 print('created producer')
 
@@ -189,23 +120,44 @@ async def read_root():
     return {"status": "ok"}
 
 @app.post("/data")
-async def data(user_data: Item):
-    print('user_data', user_data)
+def data(user_data: ItemModel):
+    logger.info(f"Received user data: {user_data}")
     try:
-        # Convert the user_data to a dictionary and serialize it to JSON
-        serialized_data = user_data.model_dump_json()
-        print(serialized_data)
-        # Produce the serialized data to the Kafka topic
-        producer.send('raw_data', serialized_data.encode('utf-8'))
-        # Wait up to 1 second for events..
-        producer.flush(2)
-        print("Processing, please wait....")
+        print('Try catch')
+        consumer_thread = Thread(target=consume_messages)
+        consumer_thread.start()
 
-        return {"status": "okitos"}
+        logger.info("Consumer thread started successfully.")
+        serialized_data = user_data.json()
+        producer.send('raw_data', serialized_data.encode('utf-8'))
+        producer.flush()
+        return {"status": "ok"}
     except Exception as e:
+        logger.error(f"Error in data endpoint: {e}")
         return {"status": "error", "message": str(e)}
     
 
+def consume_messages():
+    try:
+        logger.info('Launching consumer...')
+        consumer = KafkaConsumer(
+            'raw_data',
+            bootstrap_servers='kafka:29092',
+            auto_offset_reset='earliest',
+            enable_auto_commit=True,
+            group_id='my-group'
+        )
+        logger.info('Consumer started, waiting for messages...')
+        for message in consumer:
+            logger.info(f"Received message: {message.value.decode('utf-8')}")
+            logger.info(f'message value {message.value}')
+            process(message.value)
+            consumer.close()
+    except Exception as e:
+        logger.error(f"Error in consumer: {e}")
 
 if __name__ == "__main__":
-    uvicorn.run("app:app", port=8080, host="0.0.0.0", reload=True)
+    try:
+        uvicorn.run("app:app", port=8080, host="0.0.0.0", reload=True)
+    except Exception as e:
+        logger.error(f"Failed to start FastAPI server: {e}")

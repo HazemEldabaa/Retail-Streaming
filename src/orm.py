@@ -1,47 +1,51 @@
 import json
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy import create_engine, Column, Integer, String, ForeignKey
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import relationship, sessionmaker
+from kafka import KafkaConsumer
+import logging
 from src.models import Store, Product, Sale, SaleProduct
 
-def migrate_data(engine, Base, message):
-    # Decode the message value to get the JSON data
-    data = message.value().decode('utf-8')
-    data = json.loads(data)
+try:
+    pg_engine = create_engine('postgresql://hazem:admin@retail-streaming-postgres-1/Delhaize_Sales')
+    Base = declarative_base()
+    Base.metadata.create_all(pg_engine)
+    session = sessionmaker(bind=pg_engine)
+    logging.info("PostgreSQL connection established and tables created if not exist.")
+except Exception as e:
+    logging.error(f"Failed to connect to PostgreSQL: {e}")
 
-    # Create a session
-    Session = sessionmaker(bind=engine)
-    session = Session()
+def migrate_data(message):
 
-    try:
-        # Check if the store exists
-        store = session.query(Store).filter_by(name=data['store']).first()
+        data = message.value.decode('utf-8')
+        data = json.loads(data)
+        print('loaded')
+        Session = session()
+
+        store = Session.query(Store).filter_by(name=data['store']).first()
         if not store:
             store = Store(name=data['store'])
-            session.add(store)
-            session.commit()  # Commit to generate the store ID
+            Session.add(store)
+            Session.commit() 
+            print('added store')
         
-        # Create a Sale instance
         sale = Sale(store=store, date=data['date'], total_price=data['total_price'])
-        session.add(sale)
+        Session.add(sale)
+        print('added sale')
         
-        # Process each product in the message
         for product_data in data['products']:
-            # Check if the product exists
-            product = session.query(Product).filter_by(name=product_data['name']).first()
+            product = Session.query(Product).filter_by(name=product_data['name']).first()
             if not product:
                 product = Product(name=product_data['name'], category=product_data['category'])
-                session.add(product)
-                session.commit()  # Commit to generate the product ID
+                Session.add(product)
+                Session.commit()  
+                print('added product')
             
-            # Create a SaleProduct instance
             sale_product = SaleProduct(sale=sale, product=product, price=product_data['price'])
-            session.add(sale_product)
-        
-        # Commit changes to the database
-        session.commit()
-    except Exception as e:
-        # Rollback the session if an error occurs
-        session.rollback()
-        raise e
+            Session.add(sale_product)
 
-        # Close the session
+        Session.commit()
+        print('committed')
+        Session.close()
+
 
